@@ -59,18 +59,30 @@ pipeline {
         GIT_USER_NAME = "mintnew"
       }
       steps {
-        withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-          sh '''
+    withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+        sh '''
+            # Set git configuration
             git config user.email "chanchlesh2597@gmail.com"
             git config user.name "mintnew"
-            BUILD_NUMBER=${BUILD_NUMBER}
+            
+            # Check if we're in a git repo
+            if ! git rev-parse --git-dir > /dev/null 2>&1; then
+                echo "Error: Not in a git repository"
+                exit 1
+            fi
+            
+            # Update deployment file
             sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
+            
+            # Add and commit changes
             git add java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
-            git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+            git commit -m "Update deployment image to version ${BUILD_NUMBER}" || exit 0
+            
+            # Push changes
             git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main
-          '''
-        }
-      }
+        '''
+    }
+}
     }
   }
 }
